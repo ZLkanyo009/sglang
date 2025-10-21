@@ -528,7 +528,8 @@ def grouped_topk_gpu(
             dtype=topk_ids.dtype,
             device=topk_ids.device,
         )
-        topk_weights[:, -1] = topk_weights[:, :-1].sum(dim=-1) / routed_scaling_factor
+        if routed_scaling_factor is not None:
+            topk_weights[:, -1] = topk_weights[:, :-1].sum(dim=-1) / routed_scaling_factor 
 
     if renormalize:
         topk_weights_sum = (
@@ -630,7 +631,8 @@ def biased_grouped_topk_impl(
             dtype=topk_ids.dtype,
             device=topk_ids.device,
         )
-        topk_weights[:, -1] = topk_weights[:, :-1].sum(dim=-1) / routed_scaling_factor
+        if routed_scaling_factor is not None:
+            topk_weights[:, -1] = topk_weights[:, :-1].sum(dim=-1) / routed_scaling_factor 
 
     if renormalize:
         topk_weights_sum = (
@@ -685,9 +687,6 @@ def biased_grouped_topk_gpu(
     expert_location_dispatch_info: Optional[ExpertLocationDispatchInfo] = None,
     apply_routed_scaling_factor_on_output: Optional[bool] = False,
 ):
-    assert (
-        routed_scaling_factor is not None
-    ), "routed_scaling_factor is required for biased_grouped_topk"
     # TODO: moe_fused_gate kernel is not supported for num_fused_shared_experts > 0 now.
     if (
         _is_cuda
@@ -900,7 +899,7 @@ def select_experts(
     if num_fused_shared_experts > 0:
         M, N = router_logits.shape
         scale_factor = 1.0 if fused_shared_experts_scaling_factor is None else fused_shared_experts_scaling_factor
-        # print("topk_ids:", topk_ids)
+
         topk_ids= torch.cat([
             topk_ids,
             torch.arange(
@@ -909,8 +908,7 @@ def select_experts(
                 dtype=topk_ids.dtype,
                 device=topk_ids.device).expand(M, -1)
         ], dim=1)
-        # print("topk_ids after:", topk_ids)
-        # print("topk_weights:", topk_weights)
+
         topk_weights = torch.cat([
             topk_weights,
             torch.full(
